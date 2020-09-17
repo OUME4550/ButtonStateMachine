@@ -5,9 +5,10 @@
  */
 
 
-#define ledPin    13
-#define buttonPin 2
-
+#define ledPin      13
+#define buttonPin   2
+#define ON_DURATION 1500
+#define DEBUG_MODE //comment out to remove debug statement
 void setup() {
   // initialize the LED pin as an output:
   pinMode(ledPin, OUTPUT);
@@ -17,7 +18,6 @@ void setup() {
   Serial.println("Welcome to the button press example");
 }
 
-
 void loop() {
   //init value of state machine
   static int button1State = 1;
@@ -26,30 +26,51 @@ void loop() {
   int newButtonRead = digitalRead(buttonPin);
   delay(10);//debounce wait
   int secondButtonRead = digitalRead(buttonPin);
-  if(newButtonRead != secondButtonRead)//make sure there is no bouncing
-    return;
-  else
-  {
-    //update the state machine
-    if(button1State == 1 && newButtonRead == LOW)
-      button1State = 2;
-    else if(button1State == 2)
-      button1State = 3;
-    else if(button1State == 3 && newButtonRead == HIGH)
-      button1State = 4;
-    else if(button1State == 4)
-      button1State = 1;
-  
-    //do something with the state data
-    if (button1State == 2) {
-      digitalWrite(ledPin, HIGH);
-      pressCount++;
-      Serial.print("Press count: ");
-      Serial.println(pressCount);
-    } 
-    else if(button1State == 4) {
-      digitalWrite(ledPin, LOW);
-      Serial.println("Button Released ");
-    }
+  if(newButtonRead != secondButtonRead) {//make sure there is no bouncing
+    Serial.println("Debounce issue!");
+    return;//jump out of loop, avoids rest of code in here
+  }  
+  #ifdef DEBUG_MODE
+  Serial.print("Current State: ");
+  Serial.println(button1State);
+  #endif
+  //update the state machine
+  //STATE MACHINE LOGIC HERE
+  if(button1State == 1 && newButtonRead == HIGH)
+    button1State = 2;
+  else if(button1State == 2)
+    button1State = 3;
+  else if(button1State == 3 && newButtonRead == LOW)
+    button1State = 4;
+  else if(button1State == 4)
+    button1State = 1;
+  #ifdef DEBUG_MODE
+  Serial.print("New State: ");
+  Serial.println(button1State);
+  #endif
+  //EVENT LOGIC HERE
+  //do something with the state data
+  static unsigned long press_time = millis();
+  if (button1State == 2) { //pressed
+    press_time = millis();
+    Serial.println("LED On");
+    digitalWrite(ledPin, HIGH);
+    pressCount++;
+    Serial.print("Press count: ");
+    Serial.println(pressCount);
+  } 
+  else if(button1State == 4) { //released
+    //turn off the led when released???
+    //digitalWrite(ledPin, LOW);
+    //Serial.println("LED Off - release");
+    Serial.println("Button Released ");
   }
+  //ONLY turn off the LED if it is already on AND time has elapsed
+  else if(digitalRead(ledPin) == HIGH && press_time + ON_DURATION < millis()) {
+    digitalWrite(ledPin, LOW);
+    Serial.println("LED Off - timeout");
+  }
+  #ifdef DEBUG_MODE
+  delay(200);
+  #endif
 }
